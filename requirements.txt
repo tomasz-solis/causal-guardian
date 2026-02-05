@@ -1,0 +1,9 @@
+dowhy
+pandas
+numpy
+pytest
+matplotlib
+scipy
+networkx==2.8.8
+pydot==3.0.1
+statsmodels
