@@ -68,7 +68,6 @@ Thumbs.db
 # Project-specific
 drifted_data.csv
 *.csv
-!requirements.txt
 
 # Logs
 *.log
