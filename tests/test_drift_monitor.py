@@ -17,7 +17,7 @@ import pandas as pd
 import pytest
 
 from causal_guardian.config import DriftConfig
-from causal_guardian.dag import BASELINE_DAG, DRIFT_DAG
+from causal_guardian.dag import BASELINE_DAG
 from causal_guardian.estimation.backdoor import EffectEstimate
 from causal_guardian.monitor import CausalDriftMonitor, DriftReport, Severity
 
@@ -71,10 +71,9 @@ class TestCheckDriftBranches:
         monitor = CausalDriftMonitor(dag=BASELINE_DAG, config=cfg)
         monitor._baseline = _mock_estimate(baseline_ate)  # noqa: SLF001
 
-        from causal_guardian.monitor import DriftReport, _severity_rank  # noqa: PLC0415
-
         # Patch current estimate and call the core logic directly
         from causal_guardian.config import EPSILON  # noqa: PLC0415
+        from causal_guardian.monitor import _severity_rank  # noqa: PLC0415
 
         reasons: list[str] = []
         severity = Severity.NONE

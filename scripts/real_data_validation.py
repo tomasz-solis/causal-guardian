@@ -32,8 +32,6 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from causal_guardian.dag import CausalDAG
-
 TELCO_URL = (
     "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/"
     "master/data/Telco-Customer-Churn.csv"

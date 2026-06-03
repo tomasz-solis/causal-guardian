@@ -34,7 +34,6 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
-from causal_guardian.dag import BASELINE_DAG
 from causal_guardian.data.synthetic import generate_causal_data
 
 
@@ -159,6 +158,6 @@ if __name__ == "__main__":
     print(f"  E-value (point estimate): {e_point:.2f}")
     print(f"  E-value (CI bound near null): {e_ci:.2f}")
     print(f"  An unmeasured confounder would need risk ratios of at least {e_ci:.2f}")
-    print(f"  with BOTH the treatment and the outcome to fully explain away the")
-    print(f"  observed association. Weak confounding is unlikely to explain it away,")
-    print(f"  but stronger unmeasured confounding remains a concern.")
+    print("  with BOTH the treatment and the outcome to fully explain away the")
+    print("  observed association. Weak confounding is unlikely to explain it away,")
+    print("  but stronger unmeasured confounding remains a concern.")

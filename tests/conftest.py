@@ -6,12 +6,12 @@ All fixtures are session-scoped where the data is expensive to generate
 
 from __future__ import annotations
 
-import pytest
 import pandas as pd
+import pytest
 
-from causal_guardian.data.synthetic import generate_causal_data
-from causal_guardian.data.drift import generate_drifted_data
 from causal_guardian.config import DriftConfig
+from causal_guardian.data.drift import generate_drifted_data
+from causal_guardian.data.synthetic import generate_causal_data
 
 
 @pytest.fixture(scope="session")

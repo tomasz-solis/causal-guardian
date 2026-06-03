@@ -59,7 +59,7 @@ class CUSUMDetector:
         default_factory=list, init=False, repr=False
     )
 
-    def fit(self, burn_in_values: np.ndarray) -> "CUSUMDetector":
+    def fit(self, burn_in_values: np.ndarray) -> CUSUMDetector:
         """Estimate μ₀ and σ₀ from a burn-in sequence and reset state.
 
         Args:

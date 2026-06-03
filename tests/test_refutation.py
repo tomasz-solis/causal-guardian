@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import pytest
 
-from causal_guardian.dag import BASELINE_DAG, DRIFT_DAG
+from causal_guardian.dag import BASELINE_DAG
 from causal_guardian.estimation.backdoor import estimate_ate
 from causal_guardian.refutation import RefutationReport, run_refutation_suite
-from causal_guardian.config import DriftConfig
 
 
 @pytest.mark.slow

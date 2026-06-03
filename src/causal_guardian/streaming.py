@@ -23,9 +23,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from scipy.special import expit
 
-from causal_guardian.config import DriftConfig, StreamingConfig, SyntheticDGPConfig
+from causal_guardian.config import DriftConfig, StreamingConfig
 from causal_guardian.dag import CausalDAG
 from causal_guardian.detection.cusum import CUSUMDetector
 from causal_guardian.schemas import TimeSeriesPanelSchema

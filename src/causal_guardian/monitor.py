@@ -11,17 +11,16 @@ the synthetic generators for real data loaders and the rest is unchanged.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
+import pandas as pd
 
 from causal_guardian.config import EPSILON, DriftConfig
 from causal_guardian.dag import CausalDAG
 from causal_guardian.estimation.backdoor import EffectEstimate, estimate_ate
 from causal_guardian.schemas import CompanyChurnSchema
-
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 

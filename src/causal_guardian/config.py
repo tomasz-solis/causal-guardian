@@ -6,7 +6,7 @@ contain a magic number - import from this module instead.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Final
 
 # Avoid divide-by-zero when computing effect ratios.

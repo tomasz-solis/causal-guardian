@@ -10,12 +10,11 @@ Checks that:
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from causal_guardian.dag import BASELINE_DAG, DRIFT_DAG, CausalDAG
-from causal_guardian.estimation.backdoor import EffectEstimate, estimate_ate
+from causal_guardian.dag import BASELINE_DAG, DRIFT_DAG
+from causal_guardian.estimation.backdoor import estimate_ate
 
 
 class TestEffectEstimateBaseline:

@@ -7,14 +7,11 @@ data generators do what they claim.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import pytest
 import statsmodels.api as sm
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from causal_guardian.data.drift import generate_drifted_data
 from causal_guardian.data.synthetic import generate_causal_data
 from causal_guardian.schemas import CompanyChurnSchema
 

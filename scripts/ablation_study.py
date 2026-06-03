@@ -24,12 +24,10 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
-import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from dowhy import CausalModel
 
-from causal_guardian.dag import BASELINE_DAG
 from causal_guardian.data.synthetic import generate_causal_data
 
 
