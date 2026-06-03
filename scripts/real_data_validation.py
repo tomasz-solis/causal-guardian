@@ -26,11 +26,11 @@ import argparse
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore")
-
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+
+warnings.filterwarnings("ignore")
 
 TELCO_URL = (
     "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/"

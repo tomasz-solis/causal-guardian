@@ -22,13 +22,13 @@ import argparse
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore")
-
 import pandas as pd
 import statsmodels.api as sm
 from dowhy import CausalModel
 
 from causal_guardian.data.synthetic import generate_causal_data
+
+warnings.filterwarnings("ignore")
 
 
 def naive_ols(df: pd.DataFrame) -> tuple[float, float, float]:

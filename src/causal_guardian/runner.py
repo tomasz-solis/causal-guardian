@@ -23,6 +23,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -57,7 +58,7 @@ def run(
     use_drifted: bool = True,
     output_dir: Path | None = None,
     config: DriftConfig | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Run a full baseline → check cycle and return the result as a dict.
 
     Args:
@@ -137,7 +138,7 @@ def run(
     return result
 
 
-def _write_artifact(result: dict, output_dir: Path) -> None:
+def _write_artifact(result: dict[str, Any], output_dir: Path) -> None:
     """Write run result to a timestamped JSON file."""
     output_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")

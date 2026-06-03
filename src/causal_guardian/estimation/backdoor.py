@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 import statsmodels.api as sm
@@ -150,4 +151,4 @@ def _dowhy_data(df: pd.DataFrame, dag: CausalDAG) -> pd.DataFrame:
     ``cohort_month``. DoWhy logs those as graph mismatches, so keep its
     input limited to variables named in the causal graph.
     """
-    return df.loc[:, sorted(dag.variables)]
+    return cast(pd.DataFrame, df.loc[:, sorted(dag.variables)])

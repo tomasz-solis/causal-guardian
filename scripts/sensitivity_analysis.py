@@ -28,13 +28,13 @@ import argparse
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore")
-
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
 from causal_guardian.data.synthetic import generate_causal_data
+
+warnings.filterwarnings("ignore")
 
 
 def e_value(rr: float) -> float:

@@ -212,7 +212,7 @@ def detect_drift_streaming(
         panel: Time-series panel from TimeSeriesPanel.generate().
         dag: Causal DAG used for rolling estimation.
         streaming_cfg: StreamingConfig for window/step/CUSUM params.
-        drift_cfg: DriftConfig (used only for random_seed).
+        drift_cfg: Reserved for callers that share batch-monitor config.
 
     Returns:
         Tuple of:
@@ -220,7 +220,6 @@ def detect_drift_streaming(
             - alert_timesteps: List of timesteps where CUSUM fired.
     """
     scfg = streaming_cfg or StreamingConfig()
-    dcfg = drift_cfg or DriftConfig()
 
     estimator = RollingCausalEstimator(dag=dag, config=scfg)
     rolling = estimator.fit(panel)

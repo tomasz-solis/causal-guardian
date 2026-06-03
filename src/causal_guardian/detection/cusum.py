@@ -27,6 +27,7 @@ import logging
 from dataclasses import dataclass, field
 
 import numpy as np
+import numpy.typing as npt
 
 from causal_guardian.config import StreamingConfig
 
@@ -59,7 +60,7 @@ class CUSUMDetector:
         default_factory=list, init=False, repr=False
     )
 
-    def fit(self, burn_in_values: np.ndarray) -> CUSUMDetector:
+    def fit(self, burn_in_values: npt.NDArray[np.float64]) -> CUSUMDetector:
         """Estimate μ₀ and σ₀ from a burn-in sequence and reset state.
 
         Args:
@@ -141,9 +142,9 @@ class CUSUMDetector:
         self._history = []
 
     @property
-    def statistics(self) -> np.ndarray:
+    def statistics(self) -> npt.NDArray[np.float64]:
         """CUSUM statistics history as (timestep, S_pos, S_neg) array."""
-        return np.array(self._history)
+        return np.array(self._history, dtype=float)
 
     @property
     def current_s_pos(self) -> float:
