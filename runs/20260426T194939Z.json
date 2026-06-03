@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "run_at": "2026-04-26T19:49:39.700156+00:00",
+    "baseline_seed": 42,
+    "current_seed": 100,
+    "n_companies": 5000,
+    "use_drifted": true
+  },
+  "config": {
+    "refutation_threshold": 3.0,
+    "effect_change_threshold": 0.5,
+    "n_permutations": 200,
+    "random_seed": 42
+  },
+  "baseline": {
+    "ate": 0.0008064696500268446,
+    "ci_lower": -0.0013820564557093596,
+    "ci_upper": 0.002994995755763049,
+    "std_error": 0.0011163449522895107,
+    "n_obs": 5000
+  },
+  "current": {
+    "ate": 0.06681678563502616,
+    "ci_lower": 0.06285652793377171,
+    "ci_upper": 0.07077704333628061,
+    "std_error": 0.00202008725551568,
+    "n_obs": 5000
+  },
+  "drift_report": {
+    "drift_detected": true,
+    "severity": "WARNING",
+    "reasons": [
+      "Effect magnitude changed by 8185.1% (baseline=+0.00081, current=+0.06682)."
+    ]
+  }
+}
