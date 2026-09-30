@@ -1,43 +1,35 @@
-# Example: what a strategy brief might look like
+# Example strategy brief
 
-This is a worked example of how the Guardian's output could feed into a product strategy decision. It is written against synthetic data and all numbers are illustrative. A real version of this document would replace the synthetic coefficients with estimates from production data, validated by the causal inference team.
-
----
+How the Guardian's output could feed a product strategy decision. It uses synthetic data, so every number is illustrative. A real version would replace the synthetic coefficients with estimates from production data, checked by whoever owns causal inference.
 
 ## Scenario
 
-The Guardian detected a structural shift: `card_usage` no longer has a causal effect on churn. A test of the alternative DAG found that `onboarding_friction_score` now has a direct positive effect: `ATE = +0.078 [95% CI: 0.071, 0.085]`.
+The Guardian found a structural shift: `card_usage` no longer has a causal effect on churn. Testing an alternative DAG found that `onboarding_friction_score` now has a direct positive effect: `ATE = +0.078 [95% CI: 0.071, 0.085]`.
 
----
+## What ATE = +0.078 means
 
-## What "ATE = +0.078" means operationally
+A 1-point increase in the friction score goes with a 7.8 percentage-point increase in churn probability, after controlling for marketing spend and product usage.
 
-A 1-point increase in the friction score corresponds to a 7.8 percentage-point increase in churn probability, after controlling for marketing spend and product usage.
+If you trust the causal claim (the refutation suite supports it but doesn't prove it), reducing friction has a higher expected return than driving engagement.
 
-If you trust the causal claim (and the refutation suite provides supporting evidence, not proof), then reducing friction has a higher expected return than driving engagement.
+## What would have to be true before a strategic pivot
 
----
-
-## What would need to be true for this to justify a strategic pivot
-
-1. The friction score must be measurable in production, not just synthetic.
-2. The ATE must be estimated on real observational data, not the DGP.
-3. The causal DAG must be validated against domain knowledge - does it make sense that friction has a direct path to churn that bypasses usage entirely? Are there missing nodes (e.g., customer-success interactions, plan tier, competitor promotions)?
-4. The effect size must be large enough relative to the cost of the intervention. An ATE of +0.078 in synthetic data means nothing until you know the scale of real friction scores and the cost of reducing them.
-5. The refutation suite must pass on real data. Passing on synthetic data - where the DGP is built to be detectable - is a necessary but very weak condition.
-
----
+1. The friction score is measurable in production, not only in synthetic data.
+2. The ATE is estimated on real observational data, not the data-generating process.
+3. The DAG holds up against domain knowledge. Does friction plausibly reach churn directly, bypassing usage entirely? Are nodes missing (customer-success contacts, plan tier, competitor promotions)?
+4. The effect is large relative to the cost of the intervention. +0.078 on synthetic data means nothing until you know the scale of real friction scores and the cost of lowering them.
+5. The refutation suite passes on real data. Passing on synthetic data, built to be detectable, is necessary but a very weak test.
 
 ## How not to turn synthetic coefficients into a business case
 
-Earlier drafts of this project made a dollar-savings claim by multiplying the synthetic ATE by a synthetic customer count and a made-up ARPU. That is not analysis; it is made-up numbers formatted to look like analysis.
+Earlier drafts claimed dollar savings by multiplying the synthetic ATE by a synthetic customer count and a made-up ARPU. That isn't analysis; it's invented numbers formatted to look like it.
 
-If you wanted to produce an honest business impact estimate, the process would be:
+An honest impact estimate would:
 
-1. Estimate the ATE on real data with a proper CI.
-2. Estimate the expected change in the friction score from a specific intervention (e.g., removing two onboarding steps).
-3. Estimate churn reduction as `friction_delta × ATE`, with CI propagation.
-4. Multiply churn reduction by actual customer base and actual ARPU.
-5. Discount by intervention cost and uncertainty.
+1. Estimate the ATE on real data, with a proper CI.
+2. Estimate how much a specific intervention changes the friction score (for example, removing two onboarding steps).
+3. Estimate churn reduction as `friction_delta × ATE`, carrying the CI through.
+4. Multiply by the real customer base and real ARPU.
+5. Discount for intervention cost and uncertainty.
 
-Each step introduces uncertainty. A real business case would show a range, not a point estimate, and would acknowledge what would have to be true for the high end of the range to be achievable.
+Every step adds uncertainty. A real business case shows a range, not a point, and says what would have to be true for the top of the range to happen.

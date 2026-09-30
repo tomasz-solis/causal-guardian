@@ -1,40 +1,27 @@
 # ADR 0001: DoWhy for identification, statsmodels for estimation
 
-Status: accepted
-Date: 2026-04
-
----
+Status: accepted. Date: 2026-04.
 
 ## Context
 
-Causal Guardian needs to estimate Average Treatment Effects from observational data. Two approaches were considered:
+Causal Guardian estimates average treatment effects from observational data. Two options:
 
-Option A: Use DoWhy for the full path: `CausalModel.identify_effect()` then `estimate_effect(method_name="backdoor.linear_regression")`. DoWhy internally calls statsmodels OLS and returns a `CausalEstimate` object.
-
-Option B: Use DoWhy only for `identify_effect()` to validate the backdoor criterion against the DAG, then run statsmodels OLS directly for estimation and confidence intervals.
-
----
+- Option A: DoWhy end to end. `CausalModel.identify_effect()`, then `estimate_effect(method_name="backdoor.linear_regression")`. DoWhy calls statsmodels OLS internally and returns a `CausalEstimate`.
+- Option B: DoWhy only for `identify_effect()`, to check the backdoor criterion against the DAG, then statsmodels OLS directly for the estimate and confidence intervals.
 
 ## Decision
 
-We use Option B: DoWhy for identification and validation, statsmodels for estimation.
+Option B: DoWhy for identification and validation, statsmodels for estimation.
 
----
+## Why
 
-## Reasoning
-
-1. Confidence interval reliability. DoWhy's `CausalEstimate.get_confidence_intervals()` API has changed across versions (0.9 → 0.11), and its availability depends on the estimation method and internal hooks. Statsmodels OLS CIs are stable, well-documented, and directly support HC3 heteroskedasticity-consistent standard errors if needed. We need CIs to be reliable because they appear in the run artifact and inform the drift report.
-
-2. Refutation independence. We use DoWhy for the refutation suite (`refute_estimate` with multiple refuters). Keeping estimation in statsmodels means we can refute the DoWhy estimate and check that our statsmodels OLS gives the same ATE.
-
-3. Inspectability. `ols.summary()` from statsmodels gives a full regression table that is straightforward to log and audit. DoWhy's `CausalEstimate` object is less transparent.
-
-4. DoWhy's role is identification, not estimation. The hard part of causal inference is knowing what to control for. That is what `identify_effect()` does. Once the adjustment set is established, OLS is OLS regardless of which library runs it. DoWhy does not add correctness to the OLS step; it validates the identification.
-
----
+1. Reliable confidence intervals. DoWhy's `CausalEstimate.get_confidence_intervals()` changed between versions (0.9 to 0.11), and whether it works depends on the method and internal hooks. Statsmodels OLS intervals are stable, documented, and support HC3 errors if needed. The intervals go into the run artifact and the drift report, so they must be reliable.
+2. Independent refutation. DoWhy runs the refutation suite (`refute_estimate` with several refuters). Keeping estimation in statsmodels lets us refute DoWhy's estimate and check that our OLS gives the same ATE.
+3. Easier to inspect. `ols.summary()` gives a full regression table that is easy to log and audit. DoWhy's `CausalEstimate` is less transparent.
+4. DoWhy's job is identification. The hard part of causal inference is knowing what to control for, which is what `identify_effect()` checks. Once the adjustment set is fixed, OLS is OLS whichever library runs it.
 
 ## Consequences
 
-- We run `identify_effect()` on every estimation call to catch DAG misspecifications early. This adds a small overhead (~50ms on typical datasets) that is acceptable.
-- The refutation suite calls `estimate_effect()` internally (DoWhy needs an estimate to refute). The DoWhy internal estimate will be numerically identical to our OLS result when both use the same adjustment set.
-- If DoWhy drops or renames `identify_effect()` in a future version, only `estimation/backdoor.py:_check_identifiability()` needs updating. The estimation path is unaffected.
+- `identify_effect()` runs on every estimation call to catch DAG mistakes early. That adds about 50ms on typical datasets, which is acceptable.
+- The refutation suite calls `estimate_effect()` internally, because DoWhy needs an estimate to refute. With the same adjustment set it matches our OLS result exactly.
+- If a future DoWhy drops or renames `identify_effect()`, only `estimation/backdoor.py:_check_identifiability()` changes. Estimation is unaffected.

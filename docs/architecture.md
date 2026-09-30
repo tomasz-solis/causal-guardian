@@ -56,14 +56,9 @@ CausalDAG (dag.py)                 ← single source of truth for graph structur
 
 ## Design decisions
 
-Why statsmodels for estimation, not DoWhy's built-in estimator?
-See `docs/adr/0001-dowhy-vs-statsmodels.md`.
-
-Why a separate CUSUM module, not a threshold on the drift report?
-The `CausalDriftMonitor` does a one-shot comparison of two datasets (baseline vs current). The CUSUM module handles the *streaming* case where you have a rolling sequence of estimates and want to detect a gradual shift. These are different statistical problems that warrant different tools.
-
-Why frozen dataclasses for DAG and Config?
-Immutability makes it safe to share these objects across tests and across threads. It also prevents accidental mutation mid-run, which in a monitoring context could produce silent inconsistencies between the baseline and current-period estimation.
-
-Why pandera and not pydantic?
-Pandera is purpose-built for DataFrame validation and supports statistical constraints (ge=, le=, isin=) at the column level. Pydantic is better suited for row-level Python objects. Both would work; pandera is less verbose for this use case.
+| Question | Answer |
+|---|---|
+| Why statsmodels for estimation, not DoWhy's estimator? | See `docs/adr/0001-dowhy-vs-statsmodels.md`. |
+| Why a separate CUSUM module, not a threshold on the drift report? | `CausalDriftMonitor` compares two datasets once (baseline vs current). The CUSUM module handles the streaming case: a rolling sequence of estimates where you want to catch a gradual shift. Different problems, different tools. |
+| Why frozen dataclasses for the DAG and config? | Immutable objects are safe to share across tests and threads, and can't be changed mid-run, which in monitoring could quietly make the baseline and current estimates inconsistent. |
+| Why pandera, not pydantic? | Pandera is built for DataFrame validation and supports column-level statistical constraints (`ge=`, `le=`, `isin=`). Pydantic suits row-level Python objects. Both would work; pandera is less verbose here. |

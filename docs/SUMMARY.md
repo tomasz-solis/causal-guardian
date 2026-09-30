@@ -1,79 +1,45 @@
 # Causal Guardian: drift detection and recalibration run
- 
-This documents one run of the framework on synthetic data. The data has known effects
-injected, and the drift is engineered deliberately - the point is to check that the
-monitor catches a relationship breaking and that recalibration recovers a model that
-passes the refutation tests. Treat the numbers as a demonstration of the mechanism on
-data where the true answer is known, not as a measured business result.
- 
+
+One run of the framework on synthetic data. The effects are injected and the drift is engineered, to check that the monitor catches a relationship breaking and that recalibration finds a model that passes refutation. The numbers show the mechanism on data where the true answer is known. They aren't a business result.
+
 ## Starting model
- 
-The initial DAG:
- 
-```
+
+```text
 marketing_spend ──────┐
                       ├──> card_usage ──> churn
 onboarding_friction ──┘
 ```
- 
-Three assumed relationships: marketing spend raises usage, onboarding friction lowers
-usage, and usage lowers churn. The estimated usage → churn effect is small and
-negative (about -0.001 per unit), consistent with the injected baseline, and it passes
-the refutation test against the placebo distribution.
- 
-In this starting world, usage is the protective factor and the implied playbook is the
-familiar one: drive engagement to hold down churn.
- 
-## Detected drift
- 
-After the drift event, `monitor.py` flags that the usage → churn effect no longer
-passes refutation - the estimated effect becomes indistinguishable from the placebo
-distribution. The monitor reports the breakdown rather than a clean new model; finding
-the replacement is the next step, not an automatic one.
- 
+
+Three assumed relationships: marketing spend raises usage, onboarding friction lowers usage, and usage lowers churn. The estimated usage-to-churn effect is small and negative (about -0.001 per unit), consistent with the injected baseline, and passes refutation against the placebo distribution.
+
+In this world usage protects against churn, and the playbook is the familiar one: drive engagement.
+
+## Drift detected
+
+After the drift event, the monitor flags that the usage-to-churn effect no longer passes refutation: the estimate can't be told apart from the placebo distribution. The monitor reports the breakdown, not a new model. Finding the replacement is a separate step.
+
 ## Recalibration
- 
-Given the drift signal, the new hypothesis is that onboarding friction now drives churn
-directly rather than only through usage. The updated DAG adds a direct edge:
- 
-```
+
+The new hypothesis: onboarding friction now drives churn directly, not only through usage. The updated DAG adds a direct edge:
+
+```text
 marketing_spend ──────┐
                       ├──> card_usage
 onboarding_friction ──┴──> churn
 ```
- 
-Re-running discovery with `onboarding_friction_score` as the treatment estimates a
-positive effect of about +0.078 per friction point, which passes refutation at roughly
-34x the placebo spread. Regression tests were added to lock in the new structure:
- 
-- `test_drifted_data_friction_causes_churn` - checks the positive effect holds
-- `test_drifted_data_refutation_passes` - checks it stays above the noise threshold
-```bash
-$ pytest tests/test_causal_logic.py -v
-6 passed
-```
- 
+
+With `onboarding_friction_score` as the treatment, the estimated effect is about +0.078 per friction point, passing refutation at roughly 34x the placebo spread. Tests lock in the new structure (`test_friction_drives_churn_positively` in `tests/test_data_generation.py` and `test_friction_effect_is_positive` in `tests/test_estimation.py`).
+
 ## What the run shows
- 
-The estimated coefficient says friction is now the dominant driver in this synthetic
-world: usage has dropped out, and reducing friction is where the lever is. The exact
-size, and any translation into churn-rate or revenue terms, is only meaningful here
-because the effect was injected. On real data the same workflow would produce the
-estimate; the difference is you would not know the answer in advance, and the
-refutation and drift checks would be carrying real weight.
- 
-## What this run is meant to demonstrate
- 
-- Causal models drift. A relationship that held last quarter can stop holding, and
-  metric dashboards won't surface it because they track the metrics, not the links.
-- Refutation testing against a placebo distribution is what separates a supported effect
-  from a spurious one - more useful here than a p-value.
-- Recalibration can recover quickly when the monitor gives an early, specific signal
-  about which relationship broke.
-  
-## Run metadata
- 
-Framework: DoWhy with backdoor adjustment, statsmodels OLS for estimation,
-permutation-based refutation. The figures above come from a single synthetic run and
-should be regenerated from `src/discovery.py` and `src/monitor.py` rather than quoted
-from this file.
+
+Friction is now the main driver in this synthetic world: usage has dropped out and friction is where the lever is. The exact size, and any translation into churn rates or revenue, only means something here because the effect was injected. On real data the same workflow produces the estimate, but you don't know the answer in advance, and the refutation and drift checks carry real weight.
+
+The points it makes:
+
+- Causal models drift. A relationship that held last quarter can stop, and metric dashboards won't show it because they track metrics, not links.
+- Refutation against a placebo distribution separates a supported effect from a spurious one better than a p-value does.
+- Recalibration is fast when the monitor says early and specifically which relationship broke.
+
+## Run details
+
+DoWhy with backdoor adjustment, statsmodels OLS for estimation, permutation-based refutation. The figures come from one synthetic run. Regenerate them with `python -m causal_guardian.runner` instead of quoting this file.

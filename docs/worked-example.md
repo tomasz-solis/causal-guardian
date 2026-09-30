@@ -1,54 +1,46 @@
 # Worked example: detecting causal drift on synthetic data
 
-This document walks through what the detector does and what its output looks like, using entirely synthetic data. The scenario is illustrative - a fictional B2B fintech company where churn relationships change over time.
-
-What this is not: a real business case. The coefficients, customer counts, and timelines are fabricated. The point is to show the methodology, not to claim a specific business result.
-
----
+What the detector does and what its output looks like, on fully synthetic data. The scenario is a fictional B2B fintech company whose churn relationships change over time. The coefficients, customer counts and timelines are made up; the point is the method, not a business result.
 
 ## The scenario
 
-A fintech company (let's call it Pleo-like) tracks three signals:
+The company tracks three signals:
 
 - `card_usage`: how often B2B customers use the product.
-- `onboarding_friction_score`: difficulty of the signup and onboarding flow (0=frictionless, 10=painful).
+- `onboarding_friction_score`: how hard signup and onboarding are (0 is frictionless, 10 is painful).
 - `marketing_spend`: monthly marketing budget.
 
-The data science team believes the causal structure is:
+The data team believes the causal structure is:
 
-```
+```text
 marketing_spend ──────┐
                       ├──> card_usage ──> churn
 onboarding_friction ──┘
 ```
 
-In words: marketing and onboarding experience determine how much customers use the product; usage then determines whether they churn. Marketing has no *direct* effect on churn - it only matters if it translates into usage.
+Marketing and onboarding decide how much customers use the product, and usage decides whether they churn. Marketing has no direct effect on churn; it only matters if it turns into usage.
 
-The team has been optimising engagement. Churn stays high. Something changed.
-
----
+The team has been optimising engagement, churn stays high, and something has changed.
 
 ## Historical baseline
 
-On the historical dataset, the Guardian estimates:
+On the historical data the Guardian estimates:
 
-```
+```text
 ATE(card_usage → churn) = -0.00105 [95% CI: -0.00112, -0.00098]
 ```
 
-Interpretation: each unit increase in `card_usage` reduces churn probability by ~0.1 percentage points. Refutation suite passes (placebo p=0.002, consistent=True). The causal claim holds in historical data.
-
----
+Each unit of `card_usage` lowers churn probability by about 0.1 percentage points. The refutation suite passes (placebo p=0.002, consistent=True). The causal claim holds on historical data.
 
 ## Current period: drift detected
 
-When the detector is run on new data:
+On new data:
 
-```
+```text
 ATE(card_usage → churn) = -0.00003 [95% CI: -0.00011, +0.00005]
 ```
 
-The effect has dropped by 97% and the CI now straddles zero. The refutation test fails (placebo p=0.38 - the true effect is indistinguishable from permuted noise). The drift report:
+The effect has dropped 97% and the CI now spans zero. Refutation fails (placebo p=0.38; the effect can't be told apart from permuted noise). The drift report:
 
 ```json
 {
@@ -61,43 +53,37 @@ The effect has dropped by 97% and the CI now straddles zero. The refutation test
 }
 ```
 
----
+## Testing the drift DAG
 
-## Discovery under the drift DAG
+With `card_usage` no longer causal, the team tests another hypothesis: friction now drives churn directly.
 
-With card_usage no longer causal, the team tests an alternative hypothesis: friction now drives churn directly.
-
-```
+```text
 ATE(onboarding_friction → churn) = +0.078 [95% CI: +0.071, +0.085]
 ```
 
-Refutation suite passes. The new causal structure is:
+Refutation passes. The new structure:
 
-```
+```text
 marketing_spend ──────┐
                       ├──> card_usage
 onboarding_friction ──┴──> churn  [direct]
 ```
 
-The causal mechanism shifted. In the old model, customers who used the product stayed. In the new model, customers who had a poor onboarding experience are leaving regardless of how much they use the product afterward.
+The mechanism has shifted. Before, customers who used the product stayed. Now, customers with a poor onboarding experience leave however much they use the product afterwards.
 
----
+## Streaming detection over time
 
-## Streaming detection on a time-series panel
+The comparison above (dataset A vs dataset B) shows that something changed, not when. The streaming module builds a panel with a known break at timestep 40, and the CUSUM detector watches rolling ATE estimates:
 
-The static comparison above (dataset A vs dataset B) tells us that something changed, but not *when*. The streaming module generates a panel with a known break at timestep 40, then the CUSUM detector monitors rolling ATE estimates:
+- Before t=40: mean ATE about -0.002, CUSUM stable.
+- After t=40: mean ATE drifts toward zero, the CUSUM statistic rises, and the alert fires at t=47 (a 7-step lag at noise_std=0.30).
 
-- Before t=40: mean ATE ≈ −0.002, CUSUM stable.
-- After t=40: mean ATE drifts toward zero, CUSUM statistic rises, alert at t=47 (7-step lag at noise_std=0.30).
+The detection delay across noise levels is in `analysis/power_curve.csv`, generated by `scripts/roc_analysis.py`.
 
-The detection delay of 7 timesteps is characterised across many noise levels in `analysis/power_curve.csv`.
+## What this doesn't prove
 
----
+- The data is synthetic and built so the drift is detectable. Real data has unmeasured confounders, missing values and shifts in covariates that this doesn't reproduce.
+- The 7-step lag is a lower bound. Real noise is higher and there is less data per period.
+- Earlier versions of this document had dollar-impact claims. They were removed: they came from multiplying a synthetic coefficient by a made-up customer count, which isn't analysis.
 
-## What this does not prove
-
-- This is synthetic data. The DGP is designed so the drift is detectable. A real production dataset has unmeasured confounders, missing data, and distributional shifts in covariates that the DGP does not replicate.
-- The 7-step detection lag on synthetic data is a lower bound on real-world lag, where noise is higher and data volume per period is lower.
-- The dollar impact claims from earlier versions of this document have been removed. Those numbers came from multiplying a synthetic coefficient by a made-up customer count. That is not analysis.
-
-For a discussion of when the detector fails and why, see [docs/methodology.md](methodology.md#4-assumptions-and-failure-modes).
+When the detector fails and why: [docs/methodology.md](methodology.md#4-assumptions-and-failure-modes).

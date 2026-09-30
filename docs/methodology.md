@@ -1,157 +1,113 @@
 # Methodology
 
-This document covers the statistical machinery behind Causal Guardian: the backdoor criterion, what the refutation tests actually test, the CUSUM detector, and the assumptions that have to hold for each piece to be valid.
+The statistics behind Causal Guardian: the backdoor criterion, what the refutation tests check, the CUSUM detector, and the assumptions each part needs.
 
----
+## 1. Causal identification via backdoor adjustment
 
-## 1. Causal Identification via Backdoor Adjustment
+### The question
 
-### Identification Question
+We observe treatment T, outcome Y and other variables V. We want the average treatment effect (ATE) of T on Y: what would happen to Y if we set T to a value, not just observed it.
 
-We observe a dataset with treatment T, outcome Y, and a set of variables V. The question is: what is the Average Treatment Effect (ATE) of T on Y - i.e., what would happen to Y if we *intervened* to set T to a particular value, rather than just observing it?
-
-Naive regression of Y on T is biased if there are confounders: variables that influence both T and Y. In the card-usage scenario, `onboarding_friction_score` influences both `card_usage` (friction reduces usage) and `churn` (in the drifted regime, directly). A naive regression of `churn` on `card_usage` would partially attribute the friction-driven churn to usage.
+A plain regression of Y on T is biased when confounders affect both. In the card-usage example, `onboarding_friction_score` affects both `card_usage` (friction lowers usage) and `churn` (directly, in the drifted regime). Regressing `churn` on `card_usage` alone would credit some friction-driven churn to usage.
 
 ### The backdoor criterion (Pearl, 2009)
 
-A set of variables Z satisfies the backdoor criterion relative to (T, Y) in DAG G if:
+A set Z satisfies the backdoor criterion for (T, Y) in DAG G if:
 
 1. No element of Z is a descendant of T.
-2. Z blocks all *backdoor paths* from T to Y - i.e., all paths that enter T via an arrow pointing *into* T.
+2. Z blocks every backdoor path from T to Y, meaning every path that enters T through an arrow pointing into T.
 
-If such a Z exists, the ATE is identifiable and equals:
+If such a Z exists, the ATE is identifiable:
 
-```
+```text
 ATE = E[Y | do(T=t)] = Σ_z E[Y | T=t, Z=z] P(Z=z)
 ```
 
-For a linear model this simplifies to the OLS coefficient on T in a regression that includes Z as covariates.
+In a linear model this is the OLS coefficient on T in a regression that includes Z.
 
-### Application
+### Applied here
 
-Baseline DAG: T = `card_usage`, Y = `churn`.
-Backdoor paths from `card_usage` to `churn` pass through `marketing_spend` and `onboarding_friction_score` (both arrow-into T). Controlling for both blocks all backdoor paths.
+Baseline DAG: T = `card_usage`, Y = `churn`. The backdoor paths from `card_usage` to `churn` go through `marketing_spend` and `onboarding_friction_score` (both point into T). Controlling for both blocks them.
 
-Drift DAG: T = `onboarding_friction_score`, Y = `churn`.
-The only backdoor path runs through `marketing_spend` → `card_usage` (arrow-into `onboarding_friction_score`? No - `marketing_spend` does not cause `friction`). In this DAG, there are no backdoor paths from friction to churn, so the ATE is identified without adjustment. We nonetheless include `marketing_spend` as a control to reduce variance.
+Drift DAG: T = `onboarding_friction_score`, Y = `churn`. `marketing_spend` doesn't cause friction, so there is no backdoor path from friction to churn and the ATE is identified without adjustment. `marketing_spend` is still included as a control to reduce variance.
 
-DoWhy's `identify_effect()` verifies this identification before estimation proceeds.
+DoWhy's `identify_effect()` checks this before estimation.
 
 ### Estimation
 
-Given a valid adjustment set Z, we estimate ATE via OLS:
+With a valid adjustment set Z, the ATE comes from OLS:
 
-```
+```text
 Y = α + β·T + γ·Z + ε
 ```
 
-β is the estimated ATE. Confidence intervals come from the OLS standard errors. HC3 heteroskedasticity-consistent standard errors are available via `statsmodels` and would be preferable for binary outcomes; the current implementation uses standard OLS CIs as a simplification.
+β is the estimated ATE, with confidence intervals from the OLS standard errors. HC3 heteroskedasticity-consistent errors are available in `statsmodels` and would suit a binary outcome better; the current code uses standard OLS intervals for simplicity.
 
-Limitation: churn is binary (0/1). OLS on a binary outcome is the Linear Probability Model (LPM). LPM is unbiased for ATE under the assumptions above but can produce fitted probabilities outside [0,1] and is less efficient than logistic regression. For small effects and moderate churn rates, the bias is negligible. For a production deployment, I would use DoWhy's `backdoor.propensity_score_weighting` estimator with a logistic propensity model, or an augmented inverse-propensity estimator.
+Limitation: churn is binary (0/1), so OLS here is a linear probability model (LPM). It is unbiased for the ATE under the assumptions above, but it can predict probabilities outside [0, 1] and is less efficient than logistic regression. For small effects and moderate churn rates the bias is negligible. In production I'd use DoWhy's `backdoor.propensity_score_weighting` with a logistic propensity model, or an augmented inverse-propensity estimator.
 
----
+## 2. Refutation tests
 
-## 2. Refutation Tests
+Identification depends on the DAG being right. If the DAG misses a confounding path, the estimate is biased even with correct adjustment. The refutation tests stress the estimate from several angles.
 
-### Purpose
+| Test | What it does | Pass rule | Weakness |
+|---|---|---|---|
+| Placebo treatment | Shuffles the treatment (T ← shuffle(T)) and re-estimates N times. The share of shuffled effects at least as large as the real one is the p-value. | A small p-value (< 0.05) puts the real effect in the tail of the placebo distribution. | With large N and any real signal it almost always passes. It doesn't protect against an effect that is estimated correctly but misread causally. |
+| Random common cause | Adds a random noise variable as a common cause of T and Y, then re-estimates. A genuine effect shouldn't move much. | \|new − original\| / \|original\| < 10% | |
+| Data subset | Re-estimates on random 80% subsets N times. The estimate should be stable. | mean(\|new − original\| / \|original\|) < 10% | |
+| Bootstrap standard error | Resamples with replacement N times and estimates the ATE each time. The standard deviation is a non-parametric uncertainty measure that doesn't rely on OLS normality. | | |
 
-Causal identification rests on the DAG being correct. If the assumed DAG omits an important confounding path, the estimate is biased even with correct backdoor adjustment. Refutation tests stress-test the estimate from multiple angles.
+## 3. CUSUM drift detection
 
-### Placebo treatment refuter
+### The problem
 
-What it does: permutes the treatment variable (T ← shuffle(T)) and re-estimates the effect N times.
+We see a rolling sequence of ATE estimates, one per time window. With no drift they are roughly i.i.d. with mean μ₀ and standard deviation σ₀. We want to catch a shift in the mean.
 
-Null hypothesis: the observed effect is no larger than what you'd see with a random treatment assignment.
+### CUSUM statistic (Page, 1954)
 
-Interpretation: the fraction of permuted effects with |effect| ≥ |true effect| is the p-value. A small p-value (< 0.05) means the true effect is in the tail of the placebo distribution - supports causality.
+Normalise: Z_t = (X_t − μ₀) / σ₀.
 
-Failure mode: with large N and any real signal, this will almost always pass. It doesn't protect against a correctly-estimated but causally misinterpreted effect.
+Upper one-sided CUSUM:
 
-### Random common cause refuter
-
-What it does: adds a synthetic random noise variable as a common cause of T and Y, then re-estimates.
-
-Logic: if the estimate is genuinely causal (not spurious), adding irrelevant noise shouldn't change it much. A large shift suggests the estimate was sensitive to unmeasured confounding.
-
-Decision rule: |new_effect − original| / |original| < 10%.
-
-### Data subset refuter
-
-What it does: re-estimates on random 80% subsets N times.
-
-Logic: the estimate should be stable across subsets. Instability suggests the result is driven by a particular slice of data.
-
-Decision rule: mean(|new_effect − original| / |original|) < 10%.
-
-### Bootstrap standard error
-
-Samples the dataset with replacement N times and estimates the ATE on each bootstrap sample. The standard deviation of bootstrap estimates is the bootstrap SE, giving a non-parametric uncertainty measure that doesn't rely on OLS normality assumptions.
-
----
-
-## 3. CUSUM Drift Detection
-
-### The drift detection problem
-
-We observe a rolling sequence of ATE estimates, one per time window. Under the null (no drift), these are approximately i.i.d. from some distribution with mean μ₀ and standard deviation σ₀. We want to detect when the mean shifts.
-
-### CUSUM statistic (Page 1954)
-
-Normalise observations: Z_t = (X_t − μ₀) / σ₀.
-
-The one-sided upper CUSUM statistic is:
-
-```
+```text
 S_t⁺ = max(0, S_{t-1}⁺ + Z_t − k)
 ```
 
-where k is the *slack* parameter - typically 0.5 if you want to detect a shift of 1σ.
+k is the slack, usually 0.5 to detect a 1σ shift.
 
-The lower CUSUM monitors downward shifts:
+Lower CUSUM, for downward shifts:
 
-```
+```text
 S_t⁻ = max(0, S_{t-1}⁻ − Z_t − k)
 ```
 
-An alert fires when S_t⁺ > h or S_t⁻ > h, where h is the *threshold* (typically 4 - 5 for a ~5% false-positive rate per 1000 observations under Gaussian null).
+An alert fires when S_t⁺ > h or S_t⁻ > h. The threshold h is usually 4 to 5 for about a 5% false-positive rate per 1000 observations under a Gaussian null.
 
 ### Calibration
 
-μ₀ and σ₀ are estimated from a *burn-in period* of stable windows before monitoring begins. The threshold h trades sensitivity for specificity:
+μ₀ and σ₀ come from a burn-in period of stable windows before monitoring starts. h trades sensitivity for specificity:
 
-| Threshold h | Approx. FPR (Gaussian, 1000 steps) |
+| Threshold h | Approx. false-positive rate (Gaussian, 1000 steps) |
 |-------------|-------------------------------------|
 | 3.0 | ~10% |
 | 4.0 | ~3% |
 | 5.0 | ~1% |
 
-See `analysis/false_positive_sweep.csv` (generated by `scripts/roc_analysis.py`) for empirical FPR rates on this dataset.
+Empirical false-positive rates for this data are in `analysis/false_positive_sweep.csv`, generated by `scripts/roc_analysis.py`.
 
 ### Detection delay
 
-Detection delay is the number of timesteps between the true break and the first CUSUM alert. It depends on:
+The delay is the number of timesteps between the real break and the first alert. It depends on:
 
-- Effect-size delta (larger shift → shorter delay).
-- Noise level (more noise → longer delay).
-- Window size (larger window → more stable estimates, shorter burn-in bias, but misses fast shifts).
+- The size of the shift (bigger shift, shorter delay).
+- Noise (more noise, longer delay).
+- Window size (bigger windows give steadier estimates and less burn-in bias, but miss fast shifts).
 
-See `analysis/power_curve.csv` for the empirical power curve.
+The empirical power curve is in `analysis/power_curve.csv`.
 
----
+## 4. Assumptions and failure modes
 
-## 4. Assumptions and Failure Modes
-
-Assumption 1: The DAG is correct.
-The whole framework rests on the user-specified DAG correctly representing the causal structure. If a back-door path is missing from the graph, the ATE estimate is biased. The refutation tests provide partial protection but cannot detect a consistently-wrong DAG.
-
-Assumption 2: No feedback loops.
-The backdoor criterion requires an acyclic graph. Feedback (e.g., churn → friction, if churned users leave negative reviews affecting onboarding) violates the DAG assumption and requires dynamic causal inference.
-
-Assumption 3: Sufficient statistical power.
-At small effect sizes and high noise, the rolling estimator produces estimates whose variance is too large for the CUSUM to reliably distinguish signal from noise. The power curve (see `scripts/roc_analysis.py`) characterises the boundary.
-
-Assumption 4: Covariate shift is handled separately.
-The detector monitors the *causal effect coefficient*, not the feature distribution. If marketing_spend distribution shifts, the OLS coefficient may remain stable even though the causal mechanism is intact. Separate monitoring of covariate distributions (e.g., with a KS test) is recommended alongside this detector.
-
-Assumption 5: Linearity.
-The LPM estimator assumes a linear relationship between treatment and outcome probability. This is a reasonable approximation for the regime this project targets (moderate churn rates, moderate effect sizes) but breaks down at extreme probabilities.
+1. The DAG is correct. Everything rests on the user's DAG matching the real causal structure. A missing backdoor path biases the ATE. Refutation tests help but can't catch a DAG that is consistently wrong.
+2. No feedback loops. The backdoor criterion needs an acyclic graph. Feedback (for example churn → friction, if churned users' reviews affect onboarding) breaks it and needs dynamic causal inference.
+3. Enough statistical power. With small effects and high noise, rolling estimates vary too much for the CUSUM to separate signal from noise. The power curve (`scripts/roc_analysis.py`) maps the boundary.
+4. Covariate shift is handled elsewhere. The detector watches the causal effect coefficient, not the feature distributions. If the `marketing_spend` distribution shifts, the coefficient may stay stable while the mechanism is intact. Monitor covariate distributions separately (for example with a KS test).
+5. Linearity. The LPM assumes a linear link between treatment and outcome probability. That's reasonable for moderate churn rates and effect sizes, and breaks down at extreme probabilities.
